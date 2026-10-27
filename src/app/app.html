@@ -1,0 +1,354 @@
+@if (checkingSession()) {
+  <main class="loading-screen" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>
+    <p>Loading your workspace…</p>
+  </main>
+} @else if (user(); as currentUser) {
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Pagecraft home">
+        <span class="brand-mark">P</span>
+        <span>pagecraft</span>
+      </a>
+      <div class="account-menu">
+        <span class="account-email">{{ currentUser.email }}</span>
+        <span class="role-badge">{{ currentUser.role }}</span>
+        <button class="button button-quiet" type="button" (click)="signOut()">Sign out</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        @if (currentUser.role === 'admin') {
+          <section class="invite-panel">
+            <div class="section-kicker">TEAM ACCESS</div>
+            <h2>Invite a teammate</h2>
+            <p>Create a one-time sign-up link. Invitations expire after seven days.</p>
+            <form class="invite-form" (submit)="createInvitation($event)">
+              <label for="invite-email">Email address</label>
+              <input
+                id="invite-email"
+                name="inviteEmail"
+                type="email"
+                [(ngModel)]="inviteEmail"
+                autocomplete="email"
+                placeholder="teammate@example.com"
+                required
+              />
+              <button class="button button-secondary button-full" type="submit">Create invitation</button>
+            </form>
+            @if (inviteNotice()) {
+              <p class="inline-notice" aria-live="polite">{{ inviteNotice() }}</p>
+            }
+            @if (inviteResult(); as invitation) {
+              <div class="invite-link">
+                <label for="invitation-link">One-time invitation link</label>
+                <input id="invitation-link" [value]="invitationUrl(invitation)" readonly />
+                <button class="button button-quiet button-full" type="button" (click)="copyInvitation()">
+                  Copy link
+                </button>
+              </div>
+            }
+          </section>
+        }
+
+        <div class="page-list-header">
+          <div>
+            <div class="section-kicker">CONTENT</div>
+            <h2>Your pages</h2>
+          </div>
+          <button class="icon-button add-page-button" type="button" aria-label="Create page" (click)="createPage()">
+            +
+          </button>
+        </div>
+        <button class="button button-primary button-full new-page-button" type="button" (click)="createPage()">
+          <span aria-hidden="true">+</span> New page
+        </button>
+
+        @if (loadingPages()) {
+          <p class="sidebar-empty">Loading pages…</p>
+        } @else if (pages().length === 0) {
+          <p class="sidebar-empty">Your pages will appear here.</p>
+        } @else {
+          <nav class="page-list" aria-label="Pages">
+            @for (page of pages(); track page.id) {
+              <button
+                class="page-list-item"
+                [class.selected]="page.id === selectedPageId()"
+                type="button"
+                (click)="selectedPageId.set(page.id); pageNotice.set(''); pageError.set('')"
+              >
+                <span class="page-list-title">{{ page.title }}</span>
+                <span class="page-list-meta">
+                  <span class="status-dot" [class.published]="page.status === 'published'"></span>
+                  {{ page.status }}
+                </span>
+              </button>
+            }
+          </nav>
+        }
+      </aside>
+
+      <section class="editor">
+        @if (pageError()) {
+          <div class="alert alert-error" role="alert">{{ pageError() }}</div>
+        }
+        @if (pageNotice()) {
+          <div class="alert alert-success" role="status">{{ pageNotice() }}</div>
+        }
+
+        @if (selectedPage(); as page) {
+          <header class="editor-header">
+            <div class="page-heading-fields">
+              <label class="sr-only" for="page-title">Page title</label>
+              <input
+                id="page-title"
+                class="page-title-input"
+                [value]="page.title"
+                (input)="updateTitle($event)"
+                maxlength="120"
+                placeholder="Untitled page"
+              />
+              <p class="page-slug">/{{ page.slug }}</p>
+            </div>
+            <div class="editor-actions">
+              <label class="sr-only" for="page-status">Page status</label>
+              <select id="page-status" class="status-select" [value]="page.status" (change)="updateStatus($event)">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+              <button class="button button-primary" type="button" [disabled]="savingPage()" (click)="savePage()">
+                {{ savingPage() ? 'Saving…' : 'Save page' }}
+              </button>
+              <button class="button button-danger-quiet" type="button" (click)="deletePage()">Delete</button>
+            </div>
+          </header>
+
+          <div class="editor-layout">
+            <div class="content-canvas">
+              <div class="canvas-heading">
+                <div>
+                  <div class="section-kicker">PAGE CONTENT</div>
+                  <h1>Build your page</h1>
+                </div>
+                <span class="block-count">{{ page.blocks.length }} blocks</span>
+              </div>
+
+              @if (page.blocks.length === 0) {
+                <div class="empty-canvas">
+                  <div class="empty-canvas-icon" aria-hidden="true">＋</div>
+                  <h2>Start with a content block</h2>
+                  <p>Choose a ready-made block from the library to begin building this page.</p>
+                </div>
+              } @else {
+                <div class="block-stack">
+                  @for (block of page.blocks; track block.id; let index = $index) {
+                    <article class="block-card">
+                      <header class="block-card-header">
+                        <div class="block-card-title">
+                          <span class="block-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                          <span>{{ blockTitle(block.type) }}</span>
+                        </div>
+                        <button
+                          class="icon-button remove-block-button"
+                          type="button"
+                          [attr.aria-label]="'Remove ' + block.type + ' block'"
+                          (click)="removeBlock(block.id)"
+                        >
+                          ×
+                        </button>
+                      </header>
+
+                      <div class="block-fields">
+                        @switch (block.type) {
+                          @case ('hero') {
+                            <label>
+                              Headline
+                              <input [value]="block.data['title']" (input)="updateBlockField(block.id, 'title', $event)" />
+                            </label>
+                            <label>
+                              Supporting text
+                              <textarea rows="3" [value]="block.data['subtitle']" (input)="updateBlockField(block.id, 'subtitle', $event)"></textarea>
+                            </label>
+                            <div class="field-row">
+                              <label>
+                                Button label
+                                <input [value]="block.data['buttonLabel']" (input)="updateBlockField(block.id, 'buttonLabel', $event)" />
+                              </label>
+                              <label>
+                                Button URL
+                                <input type="url" [value]="block.data['buttonUrl']" (input)="updateBlockField(block.id, 'buttonUrl', $event)" placeholder="https://" />
+                              </label>
+                            </div>
+                            <label>
+                              Background image URL
+                              <input type="url" [value]="block.data['imageUrl']" (input)="updateBlockField(block.id, 'imageUrl', $event)" placeholder="https://" />
+                            </label>
+                          }
+                          @case ('heading') {
+                            <label>
+                              Eyebrow
+                              <input [value]="block.data['eyebrow']" (input)="updateBlockField(block.id, 'eyebrow', $event)" placeholder="Optional small label" />
+                            </label>
+                            <label>
+                              Heading
+                              <input [value]="block.data['text']" (input)="updateBlockField(block.id, 'text', $event)" />
+                            </label>
+                            <label>
+                              Body text
+                              <textarea rows="4" [value]="block.data['body']" (input)="updateBlockField(block.id, 'body', $event)"></textarea>
+                            </label>
+                          }
+                          @case ('image') {
+                            <label>
+                              Image URL
+                              <input type="url" [value]="block.data['url']" (input)="updateBlockField(block.id, 'url', $event)" placeholder="https://" />
+                            </label>
+                            <label>
+                              Alternative text
+                              <input [value]="block.data['alt']" (input)="updateBlockField(block.id, 'alt', $event)" />
+                            </label>
+                            <label>
+                              Caption
+                              <input [value]="block.data['caption']" (input)="updateBlockField(block.id, 'caption', $event)" />
+                            </label>
+                          }
+                          @case ('button') {
+                            <label>
+                              Button label
+                              <input [value]="block.data['label']" (input)="updateBlockField(block.id, 'label', $event)" />
+                            </label>
+                            <label>
+                              Destination URL
+                              <input type="url" [value]="block.data['url']" (input)="updateBlockField(block.id, 'url', $event)" placeholder="https://" />
+                            </label>
+                          }
+                          @case ('faq') {
+                            <label>
+                              Question
+                              <textarea rows="2" [value]="block.data['question']" (input)="updateBlockField(block.id, 'question', $event)"></textarea>
+                            </label>
+                            <label>
+                              Answer
+                              <textarea rows="4" [value]="block.data['answer']" (input)="updateBlockField(block.id, 'answer', $event)"></textarea>
+                            </label>
+                          }
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+            </div>
+
+            <aside class="block-library">
+              <div class="section-kicker">READY-MADE</div>
+              <h2>Block library</h2>
+              <p class="library-description">Add a block, then fill in its content.</p>
+              <div class="block-options">
+                @for (option of blockOptions; track option.type) {
+                  <button class="block-option" type="button" (click)="addBlock(option.type)">
+                    <span class="block-option-plus" aria-hidden="true">+</span>
+                    <span class="block-option-copy">
+                      <span class="block-option-title">{{ option.title }}</span>
+                      <span class="block-option-description">{{ option.description }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+              <div class="save-hint">
+                <span class="save-hint-dot"></span>
+                Changes are saved to your account when you select <strong>Save page</strong>.
+              </div>
+            </aside>
+          </div>
+        } @else {
+          <div class="welcome-state">
+            <div class="welcome-icon" aria-hidden="true">✦</div>
+            <div class="section-kicker">YOUR CONTENT WORKSPACE</div>
+            <h1>Make a page your own.</h1>
+            <p>Create a page, then combine ready-made blocks with your own text, links, and images.</p>
+            <button class="button button-primary" type="button" (click)="createPage()">Create your first page</button>
+          </div>
+        }
+      </section>
+    </main>
+  </div>
+} @else {
+  <main class="auth-page">
+    <section class="auth-card">
+      <a class="brand auth-brand" href="/">
+        <span class="brand-mark">P</span>
+        <span>pagecraft</span>
+      </a>
+      <div class="section-kicker">{{ authMode() === 'login' ? 'YOUR CONTENT WORKSPACE' : 'INVITED MEMBER' }}</div>
+      <h1>{{ authMode() === 'login' ? 'Welcome back.' : 'Create your account.' }}</h1>
+      <p class="auth-intro">
+        @if (authMode() === 'login') {
+          Sign in to manage your pages and content blocks.
+        } @else {
+          Use the invitation link from your administrator to join this workspace.
+        }
+      </p>
+
+      @if (authError()) {
+        <div class="alert alert-error" role="alert">{{ authError() }}</div>
+      }
+
+      @if (authMode() === 'login') {
+        <form class="auth-form" (submit)="signIn($event)">
+          <label for="auth-email">Email address</label>
+          <input id="auth-email" name="authEmail" type="email" [(ngModel)]="authEmail" autocomplete="email" required />
+          <label for="auth-password">Password</label>
+          <input
+            id="auth-password"
+            name="authPassword"
+            type="password"
+            [(ngModel)]="authPassword"
+            autocomplete="current-password"
+            required
+          />
+          <button class="button button-primary button-full auth-submit" type="submit">Sign in</button>
+        </form>
+        <p class="auth-switch">Have an invitation? <button type="button" (click)="useInvitation()">Create an account</button></p>
+      } @else {
+        <form class="auth-form" (submit)="register($event)">
+          <label for="registration-email">Invited email address</label>
+          <input
+            id="registration-email"
+            name="authEmail"
+            type="email"
+            [(ngModel)]="authEmail"
+            autocomplete="email"
+            required
+          />
+          <label for="invite-code">Invitation code</label>
+          <input
+            id="invite-code"
+            name="inviteToken"
+            type="text"
+            [(ngModel)]="inviteToken"
+            autocomplete="off"
+            placeholder="Paste your one-time code"
+            required
+          />
+          <label for="registration-password">Password</label>
+          <input
+            id="registration-password"
+            name="authPassword"
+            type="password"
+            [(ngModel)]="authPassword"
+            autocomplete="new-password"
+            minlength="12"
+            maxlength="128"
+            required
+          />
+          <p class="field-help">Use at least 12 characters.</p>
+          <button class="button button-primary button-full auth-submit" type="submit">Create account</button>
+        </form>
+        <p class="auth-switch">Already have an account? <button type="button" (click)="useLogin()">Sign in</button></p>
+      }
+    </section>
+    <p class="auth-footnote">Private workspace · Invitations required</p>
+  </main>
+}
