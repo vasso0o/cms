@@ -32,6 +32,178 @@
       </div>
     }
   </ng-template>
+  <ng-template #settingsAlerts>
+    @if (settingsError()) {
+      <div class="alert alert-error" role="alert">{{ settingsError() }}</div>
+    }
+    @if (settingsNotice()) {
+      <div class="alert alert-success" role="status">{{ settingsNotice() }}</div>
+    }
+  </ng-template>
+
+  <ng-template #menusTpl>
+    <ng-container *ngTemplateOutlet="settingsAlerts" />
+    @if (draft(); as d) {
+      <header class="settings-header">
+        <div>
+          <div class="section-kicker">NAVIGATION</div>
+          <h1>Menus</h1>
+        </div>
+        <button class="button button-primary" type="button" [disabled]="savingSettings()" (click)="saveSettings()">
+          {{ savingSettings() ? 'Saving…' : 'Save menus' }}
+        </button>
+      </header>
+      <div class="settings-grid">
+        @for (menu of menuDefs; track menu.key) {
+          <section class="settings-card">
+            <h2>{{ menu.title }}</h2>
+            <p class="settings-help">{{ menu.help }}</p>
+            @for (item of d.menus[menu.key]; track $index; let i = $index) {
+              <div class="menu-row">
+                <input aria-label="Label" placeholder="Label" [(ngModel)]="item.label" [name]="menu.key + 'l' + i" />
+                <input aria-label="URL" placeholder="/about or https://" [(ngModel)]="item.url" [name]="menu.key + 'u' + i" />
+                <button class="icon-button" type="button" aria-label="Move up" (click)="moveMenuItem(menu.key, i, -1)">↑</button>
+                <button class="icon-button" type="button" aria-label="Move down" (click)="moveMenuItem(menu.key, i, 1)">↓</button>
+                <button class="icon-button" type="button" aria-label="Remove item" (click)="removeMenuItem(menu.key, i)">×</button>
+              </div>
+            } @empty {
+              <p class="sidebar-empty">No items yet.</p>
+            }
+            <div class="menu-actions">
+              <button class="button button-quiet" type="button" (click)="addMenuItem(menu.key)">+ Custom link</button>
+              @if (pages().length) {
+                <select
+                  class="status-select"
+                  aria-label="Add a page"
+                  (change)="addPageFromSelect(menu.key, $event)"
+                >
+                  <option value="">+ Add a page…</option>
+                  @for (page of pages(); track page.id) {
+                    <option [value]="page.id">{{ page.title }}</option>
+                  }
+                </select>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    } @else {
+      <p class="sidebar-empty">Loading settings…</p>
+    }
+  </ng-template>
+
+  <ng-template #brandingTpl>
+    <ng-container *ngTemplateOutlet="settingsAlerts" />
+    @if (draft(); as d) {
+      <header class="settings-header">
+        <div>
+          <div class="section-kicker">SITE IDENTITY</div>
+          <h1>Branding &amp; SEO</h1>
+        </div>
+        <button class="button button-primary" type="button" [disabled]="savingSettings()" (click)="saveSettings()">
+          {{ savingSettings() ? 'Saving…' : 'Save branding' }}
+        </button>
+      </header>
+      <div class="settings-grid">
+        <section class="settings-card form-stack">
+          <h2>Identity</h2>
+          <label>Site name<input name="siteName" maxlength="100" [(ngModel)]="d.branding.siteName" /></label>
+          <label>Tagline<input name="tagline" maxlength="200" [(ngModel)]="d.branding.tagline" /></label>
+          <label>Logo URL<input name="logoUrl" placeholder="https://" [(ngModel)]="d.branding.logoUrl" /></label>
+          <label>Favicon URL<input name="faviconUrl" placeholder="https://" [(ngModel)]="d.branding.faviconUrl" /></label>
+          <label>Contact email<input name="contactEmail" type="email" [(ngModel)]="d.branding.contactEmail" /></label>
+          @if (d.branding.logoUrl) {
+            <img class="logo-preview" [src]="d.branding.logoUrl" alt="Logo preview" />
+          }
+        </section>
+        <section class="settings-card form-stack">
+          <h2>Search &amp; sharing</h2>
+          <label>
+            Meta title <span class="char-count">{{ d.branding.metaTitle.length }}/70</span>
+            <input name="metaTitle" maxlength="70" [(ngModel)]="d.branding.metaTitle" />
+          </label>
+          <label>
+            Meta description <span class="char-count">{{ d.branding.metaDescription.length }}/320</span>
+            <textarea name="metaDescription" rows="4" maxlength="320" [(ngModel)]="d.branding.metaDescription"></textarea>
+          </label>
+          <label>Keywords<input name="metaKeywords" maxlength="500" placeholder="comma, separated" [(ngModel)]="d.branding.metaKeywords" /></label>
+          <label>Social share image URL<input name="ogImageUrl" placeholder="https://" [(ngModel)]="d.branding.ogImageUrl" /></label>
+          <div class="seo-preview">
+            <div class="seo-title">{{ d.branding.metaTitle || d.branding.siteName || 'Site title' }}</div>
+            <div class="seo-desc">{{ d.branding.metaDescription || 'Your meta description appears here.' }}</div>
+          </div>
+        </section>
+      </div>
+    } @else {
+      <p class="sidebar-empty">Loading settings…</p>
+    }
+  </ng-template>
+
+  <ng-template #stylesTpl>
+    <ng-container *ngTemplateOutlet="settingsAlerts" />
+    @if (draft(); as d) {
+      <header class="settings-header">
+        <div>
+          <div class="section-kicker">APPEARANCE</div>
+          <h1>Styles &amp; colors</h1>
+        </div>
+        <div class="editor-actions">
+          <button class="button button-quiet" type="button" (click)="resetTheme()">Reset to defaults</button>
+          <button class="button button-primary" type="button" [disabled]="savingSettings()" (click)="saveSettings()">
+            {{ savingSettings() ? 'Saving…' : 'Save styles' }}
+          </button>
+        </div>
+      </header>
+      <div class="settings-grid">
+        <section class="settings-card form-stack">
+          <h2>Shape &amp; spacing</h2>
+          <label>
+            Corner radius <span class="char-count">{{ d.theme.cornerRadius }}px</span>
+            <input name="cornerRadius" type="range" min="0" max="40" [(ngModel)]="d.theme.cornerRadius" />
+          </label>
+          <label>
+            Padding <span class="char-count">{{ d.theme.padding }}px</span>
+            <input name="padding" type="range" min="0" max="64" [(ngModel)]="d.theme.padding" />
+          </label>
+          <label>
+            Default mode
+            <select name="defaultMode" class="status-select" [(ngModel)]="d.theme.defaultMode">
+              <option value="auto">Follow visitor's device</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </section>
+        @for (mode of modes; track mode.key) {
+          <section class="settings-card">
+            <h2>{{ mode.title }}</h2>
+            <div class="color-grid">
+              @for (field of paletteFields; track field.key) {
+                <label class="color-field">
+                  <span>{{ field.label }}</span>
+                  <span class="color-inputs">
+                    <input type="color" [name]="mode.key + field.key + 'c'" [(ngModel)]="d.theme[mode.key][field.key]" />
+                    <input class="hex-input" maxlength="7" [name]="mode.key + field.key + 'h'" [(ngModel)]="d.theme[mode.key][field.key]" />
+                  </span>
+                </label>
+              }
+            </div>
+            <div class="theme-preview" [style]="previewVars(d.theme, d.theme[mode.key])">
+              <strong>{{ d.branding.siteName || 'Your site' }}</strong>
+              <p>Body text sits on the background, cards use the surface color.</p>
+              <div class="theme-preview-card">
+                <span>Card</span>
+                <button type="button">Primary</button>
+                <button type="button" class="secondary">Secondary</button>
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+    } @else {
+      <p class="sidebar-empty">Loading settings…</p>
+    }
+  </ng-template>
   <app-modal-host />
 
   <div class="app-shell">
@@ -52,6 +224,22 @@
 
     <main class="workspace">
       <aside class="sidebar">
+        <nav class="section-nav" aria-label="Sections">
+          @for (item of sections; track item.id) {
+            <button
+              class="section-nav-item"
+              type="button"
+              [class.active]="section() === item.id"
+              [attr.aria-current]="section() === item.id ? 'page' : null"
+              (click)="openSection(item.id)"
+            >
+              <span class="section-nav-icon" aria-hidden="true">{{ item.icon }}</span>
+              {{ item.label }}
+            </button>
+          }
+        </nav>
+
+        @if (section() === 'pages') {
         <div class="page-list-header">
           <div>
             <div class="section-kicker">CONTENT</div>
@@ -87,9 +275,17 @@
             }
           </nav>
         }
+        }
       </aside>
 
       <section class="editor">
+        @if (section() === 'menus') {
+          <ng-container *ngTemplateOutlet="menusTpl" />
+        } @else if (section() === 'branding') {
+          <ng-container *ngTemplateOutlet="brandingTpl" />
+        } @else if (section() === 'styles') {
+          <ng-container *ngTemplateOutlet="stylesTpl" />
+        } @else {
         @if (pageError()) {
           <div class="alert alert-error" role="alert">{{ pageError() }}</div>
         }
@@ -270,6 +466,7 @@
             <p>Create a page, then combine ready-made blocks with your own text, links, and images.</p>
             <button class="button button-primary" type="button" (click)="createPage()">Create your first page</button>
           </div>
+        }
         }
       </section>
     </main>

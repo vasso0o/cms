@@ -1,11 +1,21 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PLATFORM_ID } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ModalHost } from './modal-host';
 import { ModalService } from './modal.service';
+import {
+  defaultTheme,
+  PALETTE_FIELDS,
+  Palette,
+  SiteSettings,
+  SiteSettingsService,
+  Theme,
+} from './site-settings.service';
+
+type Section = 'pages' | 'menus' | 'branding' | 'styles';
 
 type UserRole = 'admin' | 'editor';
 type PageStatus = 'draft' | 'published';
@@ -40,7 +50,7 @@ interface Invitation {
 }
 
 @Component({
-  imports: [FormsModule, ModalHost],
+  imports: [FormsModule, ModalHost, NgTemplateOutlet],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -65,6 +75,39 @@ export class App {
   readonly pageNotice = signal('');
   readonly inviteNotice = signal('');
   readonly inviteResult = signal<Invitation | null>(null);
+  private readonly siteSettings = inject(SiteSettingsService);
+  readonly section = signal<Section>('pages');
+  readonly draft = signal<SiteSettings | null>(null);
+  readonly savingSettings = signal(false);
+  readonly settingsError = signal('');
+  readonly settingsNotice = signal('');
+  readonly paletteFields = PALETTE_FIELDS;
+  readonly menuDefs: { key: 'navigation' | 'footer'; title: string; help: string }[] = [
+    { key: 'navigation', title: 'Navigation menu', help: 'Links shown in the site header.' },
+    { key: 'footer', title: 'Footer menu', help: 'Links shown in the site footer.' },
+  ];
+  readonly modes: { key: 'light' | 'dark'; title: string }[] = [
+    { key: 'light', title: 'Light mode colors' },
+    { key: 'dark', title: 'Dark mode colors' },
+  ];
+
+  addPageFromSelect(menu: 'navigation' | 'footer', event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) {
+      return;
+    }
+    const page = this.pages().find((item) => item.id === target.value);
+    if (page) {
+      this.addPageToMenu(menu, page);
+    }
+    target.value = '';
+  }
+  readonly sections: { id: Section; label: string; icon: string }[] = [
+    { id: 'pages', label: 'Pages', icon: '▤' },
+    { id: 'menus', label: 'Menus', icon: '☰' },
+    { id: 'branding', label: 'Branding & SEO', icon: '◎' },
+    { id: 'styles', label: 'Styles & colors', icon: '◐' },
+  ];
 
   authEmail = '';
   authPassword = '';
@@ -145,6 +188,8 @@ export class App {
       this.user.set(null);
       this.pages.set([]);
       this.selectedPageId.set(null);
+      this.draft.set(null);
+      this.section.set('pages');
       this.authMode.set('login');
     } catch (error) {
       this.authError.set(this.errorMessage(error));
@@ -320,6 +365,7 @@ export class App {
 
   private async acceptUser(user: User): Promise<void> {
     this.user.set(user);
+    void this.loadSettings();
     this.loadingPages.set(true);
     try {
       const pages = await firstValueFrom(this.http.get<Page[]>('/api/pages'));
@@ -330,6 +376,78 @@ export class App {
     } finally {
       this.loadingPages.set(false);
     }
+  }
+
+  private async loadSettings(): Promise<void> {
+    try {
+      this.draft.set(await this.siteSettings.load());
+    } catch (error) {
+      this.settingsError.set(this.errorMessage(error));
+    }
+  }
+
+  async saveSettings(): Promise<void> {
+    const draft = this.draft();
+    if (!draft) {
+      return;
+    }
+    this.settingsError.set('');
+    this.settingsNotice.set('');
+    this.savingSettings.set(true);
+    try {
+      this.draft.set(await this.siteSettings.save(draft));
+      this.settingsNotice.set('Settings saved.');
+    } catch (error) {
+      this.settingsError.set(this.errorMessage(error));
+    } finally {
+      this.savingSettings.set(false);
+    }
+  }
+
+  openSection(section: Section): void {
+    this.section.set(section);
+    this.settingsError.set('');
+    this.settingsNotice.set('');
+  }
+
+  addMenuItem(menu: 'navigation' | 'footer'): void {
+    this.draft()?.menus[menu].push({ label: '', url: '/' });
+  }
+
+  removeMenuItem(menu: 'navigation' | 'footer', index: number): void {
+    this.draft()?.menus[menu].splice(index, 1);
+  }
+
+  moveMenuItem(menu: 'navigation' | 'footer', index: number, offset: number): void {
+    const items = this.draft()?.menus[menu];
+    const target = index + offset;
+    if (!items || target < 0 || target >= items.length) {
+      return;
+    }
+    [items[index], items[target]] = [items[target], items[index]];
+  }
+
+  addPageToMenu(menu: 'navigation' | 'footer', page: Page): void {
+    this.draft()?.menus[menu].push({ label: page.title, url: `/${page.slug}` });
+  }
+
+  resetTheme(): void {
+    const draft = this.draft();
+    if (draft) {
+      draft.theme = defaultTheme();
+    }
+  }
+
+  previewVars(theme: Theme, palette: Palette): Record<string, string> {
+    return {
+      '--p-primary': palette.primary,
+      '--p-secondary': palette.secondary,
+      '--p-background': palette.background,
+      '--p-surface': palette.surface,
+      '--p-text': palette.text,
+      '--p-radius': `${theme.cornerRadius}px`,
+      '--p-padding': `${theme.padding}px`,
+    };
   }
 
   private updateSelectedPage(patch: Partial<Page>): void {
