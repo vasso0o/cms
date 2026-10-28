@@ -4,6 +4,36 @@
     <p>Loading your workspace…</p>
   </main>
 } @else if (user(); as currentUser) {
+  <ng-template #inviteModal>
+    <p class="modal-intro">Create a one-time sign-up link. Invitations expire after seven days.</p>
+    <form class="invite-form" (submit)="createInvitation($event)">
+      <label for="invite-email">Email address</label>
+      <input
+        id="invite-email"
+        name="inviteEmail"
+        type="email"
+        [(ngModel)]="inviteEmail"
+        autocomplete="email"
+        placeholder="teammate@example.com"
+        required
+      />
+      <button class="button button-secondary button-full" type="submit">Create invitation</button>
+    </form>
+    @if (inviteNotice()) {
+      <p class="inline-notice" aria-live="polite">{{ inviteNotice() }}</p>
+    }
+    @if (inviteResult(); as invitation) {
+      <div class="invite-link">
+        <label for="invitation-link">One-time invitation link</label>
+        <input id="invitation-link" [value]="invitationUrl(invitation)" readonly />
+        <button class="button button-quiet button-full" type="button" (click)="copyInvitation()">
+          Copy link
+        </button>
+      </div>
+    }
+  </ng-template>
+  <app-modal-host />
+
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="/" aria-label="Pagecraft home">
@@ -11,6 +41,9 @@
         <span>pagecraft</span>
       </a>
       <div class="account-menu">
+        @if (currentUser.role === 'admin') {
+          <button class="button button-quiet" type="button" (click)="openAdmin(inviteModal)">Admin</button>
+        }
         <span class="account-email">{{ currentUser.email }}</span>
         <span class="role-badge">{{ currentUser.role }}</span>
         <button class="button button-quiet" type="button" (click)="signOut()">Sign out</button>
@@ -19,39 +52,6 @@
 
     <main class="workspace">
       <aside class="sidebar">
-        @if (currentUser.role === 'admin') {
-          <section class="invite-panel">
-            <div class="section-kicker">TEAM ACCESS</div>
-            <h2>Invite a teammate</h2>
-            <p>Create a one-time sign-up link. Invitations expire after seven days.</p>
-            <form class="invite-form" (submit)="createInvitation($event)">
-              <label for="invite-email">Email address</label>
-              <input
-                id="invite-email"
-                name="inviteEmail"
-                type="email"
-                [(ngModel)]="inviteEmail"
-                autocomplete="email"
-                placeholder="teammate@example.com"
-                required
-              />
-              <button class="button button-secondary button-full" type="submit">Create invitation</button>
-            </form>
-            @if (inviteNotice()) {
-              <p class="inline-notice" aria-live="polite">{{ inviteNotice() }}</p>
-            }
-            @if (inviteResult(); as invitation) {
-              <div class="invite-link">
-                <label for="invitation-link">One-time invitation link</label>
-                <input id="invitation-link" [value]="invitationUrl(invitation)" readonly />
-                <button class="button button-quiet button-full" type="button" (click)="copyInvitation()">
-                  Copy link
-                </button>
-              </div>
-            }
-          </section>
-        }
-
         <div class="page-list-header">
           <div>
             <div class="section-kicker">CONTENT</div>

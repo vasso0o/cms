@@ -900,3 +900,44 @@ select:focus-visible {
     padding: 25px 21px;
   }
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 19, 35, 0.45);
+}
+
+.modal {
+  width: min(420px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 20px 60px rgba(20, 19, 35, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.modal-header h2 {
+  margin: 6px 0 0;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+}
+
+.modal-intro {
+  margin: 0 0 13px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

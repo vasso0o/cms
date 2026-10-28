@@ -1,9 +1,11 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PLATFORM_ID } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { ModalHost } from './modal-host';
+import { ModalService } from './modal.service';
 
 type UserRole = 'admin' | 'editor';
 type PageStatus = 'draft' | 'published';
@@ -38,13 +40,14 @@ interface Invitation {
 }
 
 @Component({
-  imports: [FormsModule],
+  imports: [FormsModule, ModalHost],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
 })
 export class App {
   private readonly http = inject(HttpClient);
+  protected readonly modal = inject(ModalService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly user = signal<User | null>(null);
@@ -90,6 +93,12 @@ export class App {
       }
       void this.restoreSession();
     }
+  }
+
+  openAdmin(template: TemplateRef<unknown>): void {
+    this.inviteNotice.set('');
+    this.inviteResult.set(null);
+    this.modal.open(template, { kicker: 'TEAM ACCESS', title: 'Invite a teammate' });
   }
 
   async signIn(event: SubmitEvent): Promise<void> {
