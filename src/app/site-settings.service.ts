@@ -48,6 +48,11 @@ export interface SiteSettings {
   published: boolean;
 }
 
+export interface SiteBuildResponse {
+  buildId: string;
+  status: string;
+}
+
 export const PALETTE_FIELDS: { key: PaletteKey; label: string }[] = [
   { key: 'primary', label: 'Primary' },
   { key: 'secondary', label: 'Secondary' },
@@ -76,6 +81,14 @@ export class SiteSettingsService {
 
   save(settings: SiteSettings): Promise<SiteSettings> {
     return firstValueFrom(this.http.put<SiteSettings>('/api/site', settings));
+  }
+
+  publish(): Promise<SiteBuildResponse> {
+    return firstValueFrom(this.http.post<SiteBuildResponse>('/api/site/publish', {}));
+  }
+
+  unpublish(): Promise<SiteBuildResponse> {
+    return firstValueFrom(this.http.post<SiteBuildResponse>('/api/site/unpublish', {}));
   }
 
   async uploadImage(file: File): Promise<string> {

@@ -80,6 +80,7 @@ export class App {
   readonly section = signal<Section>('pages');
   readonly draft = signal<SiteSettings | null>(null);
   readonly savingSettings = signal(false);
+  readonly publishingSite = signal(false);
   readonly settingsError = signal('');
   readonly settingsNotice = signal('');
   readonly paletteFields = PALETTE_FIELDS;
@@ -516,16 +517,44 @@ export class App {
     }
   }
 
-  async togglePublished(): Promise<void> {
+  async publishSite(): Promise<void> {
     const draft = this.draft();
-    if (draft) {
-      draft.published = !draft.published;
-      await this.saveSettings();
-      if (!this.settingsError()) {
-        this.settingsNotice.set(draft.published ? 'Site published.' : 'Site set to draft.');
-      } else {
-        draft.published = !draft.published;
-      }
+    if (!draft || this.savingSettings() || this.publishingSite()) {
+      return;
+    }
+
+    await this.saveSettings();
+    if (this.settingsError()) {
+      return;
+    }
+    await this.runPublicationAction(true);
+  }
+
+  async unpublishSite(): Promise<void> {
+    if (!this.draft() || this.savingSettings() || this.publishingSite()) {
+      return;
+    }
+    await this.runPublicationAction(false);
+  }
+
+  private async runPublicationAction(shouldPublish: boolean): Promise<void> {
+    this.settingsError.set('');
+    this.settingsNotice.set('');
+    this.publishingSite.set(true);
+    try {
+      const result = shouldPublish
+        ? await this.siteSettings.publish()
+        : await this.siteSettings.unpublish();
+      this.draft.update((current) => current ? { ...current, published: shouldPublish } : current);
+      this.settingsNotice.set(
+        shouldPublish
+          ? `Publishing started. Your site will update when the build finishes (${result.buildId}).`
+          : `Unpublishing started. The site is being removed (${result.buildId}).`,
+      );
+    } catch (error) {
+      this.settingsError.set(this.errorMessage(error));
+    } finally {
+      this.publishingSite.set(false);
     }
   }
 

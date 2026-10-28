@@ -142,7 +142,17 @@
           <label>Favicon URL<input name="faviconUrl" placeholder="https://" [(ngModel)]="d.branding.faviconUrl" /></label>
           <label class="upload-row">Or upload a favicon<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('faviconUrl', $event)" /></label>
           <label>Contact email<input name="contactEmail" type="email" [(ngModel)]="d.branding.contactEmail" /></label>
-          <label>Domain name<input name="domain" type="text" maxlength="253" [(ngModel)]="d.branding.domain" /></label>
+          <label>
+            Site address
+            <input
+              name="domain"
+              type="text"
+              maxlength="253"
+              placeholder="vasso-sites.bakabuild.com"
+              [(ngModel)]="d.branding.domain"
+            />
+            <span class="settings-help">Use one subdomain ending in .bakabuild.com.</span>
+          </label>
           @if (d.branding.logoUrl) {
             <img class="logo-preview" [src]="d.branding.logoUrl" alt="Logo preview" />
           }
@@ -257,15 +267,33 @@
     <main class="workspace">
       <aside class="sidebar">
         <hr />
-          <button
-            class="button"
-            type="button"
-            [class.button-primary]="!draft()?.published"
-            [disabled]="!draft() || savingSettings()"
-            (click)="togglePublished()"
-          >
-            {{ draft()?.published ? 'Draft site' : 'Publish site' }}
-          </button>
+          @if (draft()?.published) {
+            <button
+              class="button button-primary"
+              type="button"
+              [disabled]="savingSettings() || publishingSite()"
+              (click)="publishSite()"
+            >
+              {{ publishingSite() ? 'Starting…' : 'Publish changes' }}
+            </button>
+            <button
+              class="button"
+              type="button"
+              [disabled]="savingSettings() || publishingSite()"
+              (click)="unpublishSite()"
+            >
+              Unpublish site
+            </button>
+          } @else {
+            <button
+              class="button button-primary"
+              type="button"
+              [disabled]="!draft() || savingSettings() || publishingSite()"
+              (click)="publishSite()"
+            >
+              {{ publishingSite() ? 'Starting…' : 'Publish site' }}
+            </button>
+          }
         <hr />
         <nav class="section-nav" aria-label="Sections">
           @for (item of sections; track item.id) {
