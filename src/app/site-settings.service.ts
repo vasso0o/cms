@@ -14,6 +14,7 @@ export interface Branding {
   metaDescription: string;
   metaKeywords: string;
   ogImageUrl: string;
+  domain: string;
 }
 
 export interface MenuItem {
@@ -44,6 +45,7 @@ export interface SiteSettings {
   branding: Branding;
   menus: { navigation: MenuItem[]; footer: MenuItem[] };
   theme: Theme;
+  published: boolean;
 }
 
 export const PALETTE_FIELDS: { key: PaletteKey; label: string }[] = [

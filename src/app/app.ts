@@ -516,6 +516,19 @@ export class App {
     }
   }
 
+  async togglePublished(): Promise<void> {
+    const draft = this.draft();
+    if (draft) {
+      draft.published = !draft.published;
+      await this.saveSettings();
+      if (!this.settingsError()) {
+        this.settingsNotice.set(draft.published ? 'Site published.' : 'Site set to draft.');
+      } else {
+        draft.published = !draft.published;
+      }
+    }
+  }
+
   openSection(section: Section): void {
     this.section.set(section);
     this.settingsError.set('');
