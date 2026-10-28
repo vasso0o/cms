@@ -32,6 +32,34 @@
       </div>
     }
   </ng-template>
+  <ng-template #fieldTpl let-field="field" let-value="value" let-onInput="onInput" let-onUpload="onUpload">
+    <label>
+      {{ field.label }}
+      @switch (field.kind) {
+        @case ('textarea') {
+          <textarea rows="3" [value]="value ?? ''" (input)="onInput($event)"></textarea>
+        }
+        @case ('select') {
+          <select class="status-select" [value]="value" (change)="onInput($event)">
+            @for (option of field.options; track option.value) {
+              <option [value]="option.value" [selected]="option.value === value">{{ option.label }}</option>
+            }
+          </select>
+        }
+        @case ('image') {
+          <input type="url" [value]="value ?? ''" (input)="onInput($event)" placeholder="https:// or upload below" />
+          <input type="file" class="file-input" accept="image/png,image/jpeg,image/gif,image/webp" (change)="onUpload($event)" />
+          @if (value) {
+            <img class="field-thumb" [src]="value" alt="" />
+          }
+        }
+        @default {
+          <input type="text" [value]="value ?? ''" (input)="onInput($event)" [placeholder]="field.placeholder ?? (field.kind === 'url' ? 'https://' : '')" />
+        }
+      }
+    </label>
+  </ng-template>
+
   <ng-template #settingsAlerts>
     @if (settingsError()) {
       <div class="alert alert-error" role="alert">{{ settingsError() }}</div>
@@ -110,7 +138,9 @@
           <label>Site name<input name="siteName" maxlength="100" [(ngModel)]="d.branding.siteName" /></label>
           <label>Tagline<input name="tagline" maxlength="200" [(ngModel)]="d.branding.tagline" /></label>
           <label>Logo URL<input name="logoUrl" placeholder="https://" [(ngModel)]="d.branding.logoUrl" /></label>
+          <label class="upload-row">Or upload a logo<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('logoUrl', $event)" /></label>
           <label>Favicon URL<input name="faviconUrl" placeholder="https://" [(ngModel)]="d.branding.faviconUrl" /></label>
+          <label class="upload-row">Or upload a favicon<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('faviconUrl', $event)" /></label>
           <label>Contact email<input name="contactEmail" type="email" [(ngModel)]="d.branding.contactEmail" /></label>
           @if (d.branding.logoUrl) {
             <img class="logo-preview" [src]="d.branding.logoUrl" alt="Logo preview" />
@@ -128,6 +158,7 @@
           </label>
           <label>Keywords<input name="metaKeywords" maxlength="500" placeholder="comma, separated" [(ngModel)]="d.branding.metaKeywords" /></label>
           <label>Social share image URL<input name="ogImageUrl" placeholder="https://" [(ngModel)]="d.branding.ogImageUrl" /></label>
+          <label class="upload-row">Or upload a share image<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('ogImageUrl', $event)" /></label>
           <div class="seo-preview">
             <div class="seo-title">{{ d.branding.metaTitle || d.branding.siteName || 'Site title' }}</div>
             <div class="seo-desc">{{ d.branding.metaDescription || 'Your meta description appears here.' }}</div>
@@ -380,6 +411,10 @@
                               Background image URL
                               <input type="url" [value]="block.data['imageUrl']" (input)="updateBlockField(block.id, 'imageUrl', $event)" placeholder="https://" />
                             </label>
+                            <label class="upload-row">
+                              Or upload an image
+                              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBlockImage(block.id, 'imageUrl', $event)" />
+                            </label>
                           }
                           @case ('heading') {
                             <label>
@@ -400,6 +435,10 @@
                               Image URL
                               <input type="url" [value]="block.data['url']" (input)="updateBlockField(block.id, 'url', $event)" placeholder="https://" />
                             </label>
+                            <label class="upload-row">
+                              Or upload an image
+                              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBlockImage(block.id, 'url', $event)" />
+                            </label>
                             <label>
                               Alternative text
                               <input [value]="block.data['alt']" (input)="updateBlockField(block.id, 'alt', $event)" />
@@ -419,15 +458,37 @@
                               <input type="url" [value]="block.data['url']" (input)="updateBlockField(block.id, 'url', $event)" placeholder="https://" />
                             </label>
                           }
-                          @case ('faq') {
-                            <label>
-                              Question
-                              <textarea rows="2" [value]="block.data['question']" (input)="updateBlockField(block.id, 'question', $event)"></textarea>
-                            </label>
-                            <label>
-                              Answer
-                              <textarea rows="4" [value]="block.data['answer']" (input)="updateBlockField(block.id, 'answer', $event)"></textarea>
-                            </label>
+                          @default {
+                            @if (blockDef(block.type); as def) {
+                              @for (field of def.fields; track field.key) {
+                                <ng-container
+                                  *ngTemplateOutlet="fieldTpl; context: { field: field, value: block.data[field.key], onInput: blockFieldHandler(block.id, field.key), onUpload: blockUploadHandler(block.id, field.key) }"
+                                />
+                              }
+                              @if (def.itemFields) {
+                                <div class="item-list">
+                                  <div class="item-list-title">{{ def.itemLabel }}s ({{ blockItems(block).length }})</div>
+                                  @for (item of blockItems(block); track $index; let i = $index) {
+                                    <div class="item-card">
+                                      <div class="item-card-header">
+                                        <span>{{ def.itemLabel }} {{ i + 1 }}</span>
+                                        <span class="item-card-actions">
+                                          <button class="icon-button" type="button" aria-label="Move up" (click)="moveItem(block, i, -1)">↑</button>
+                                          <button class="icon-button" type="button" aria-label="Move down" (click)="moveItem(block, i, 1)">↓</button>
+                                          <button class="icon-button" type="button" aria-label="Remove" (click)="removeItem(block, i)">×</button>
+                                        </span>
+                                      </div>
+                                      @for (field of def.itemFields; track field.key) {
+                                        <ng-container
+                                          *ngTemplateOutlet="fieldTpl; context: { field: field, value: item[field.key], onInput: itemFieldHandler(block, i, field.key), onUpload: itemUploadHandler(block, i, field.key) }"
+                                        />
+                                      }
+                                    </div>
+                                  }
+                                  <button class="button button-quiet" type="button" (click)="addItem(block)">+ Add {{ def.itemLabel?.toLowerCase() }}</button>
+                                </div>
+                              }
+                            }
                           }
                         }
                       </div>

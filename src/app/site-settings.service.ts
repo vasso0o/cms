@@ -73,4 +73,11 @@ export class SiteSettingsService {
   save(settings: SiteSettings): Promise<SiteSettings> {
     return firstValueFrom(this.http.put<SiteSettings>('/api/site', settings));
   }
+
+  async uploadImage(file: File): Promise<string> {
+    const body = new FormData();
+    body.append('file', file);
+    const result = await firstValueFrom(this.http.post<{ url: string }>('/api/media', body));
+    return result.url;
+  }
 }

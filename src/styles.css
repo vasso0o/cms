@@ -993,3 +993,13 @@ select:focus-visible {
   padding: 6px 12px; border: 0; border-radius: var(--p-radius); background: var(--p-primary); color: var(--p-background); font-size: 12px;
 }
 .theme-preview-card button.secondary { background: var(--p-secondary); }
+
+.upload-row input[type='file'] { font-size: 12px; }
+
+.item-list { display: grid; gap: 10px; padding-top: 6px; border-top: 1px solid #ece9ff; }
+.item-list-title { color: #66657a; font-size: 12px; font-weight: 700; }
+.item-card { display: grid; gap: 9px; padding: 12px; border: 1px solid #e8e7f1; border-radius: 10px; background: #faf9ff; }
+.item-card-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; }
+.item-card-actions { display: flex; gap: 4px; }
+.field-thumb { max-width: 120px; max-height: 80px; border-radius: 6px; object-fit: cover; }
+.file-input { font-size: 12px; }

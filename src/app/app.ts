@@ -6,6 +6,7 @@ import { PLATFORM_ID } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ModalHost } from './modal-host';
 import { ModalService } from './modal.service';
+import { BLOCK_DEFS, BlockDef, BlockItem, BlockType as ImportedBlockType } from './block-types';
 import {
   defaultTheme,
   PALETTE_FIELDS,
@@ -19,7 +20,7 @@ type Section = 'pages' | 'menus' | 'branding' | 'styles';
 
 type UserRole = 'admin' | 'editor';
 type PageStatus = 'draft' | 'published';
-type BlockType = 'hero' | 'heading' | 'image' | 'button' | 'faq';
+type BlockType = ImportedBlockType;
 
 interface User {
   id: string;
@@ -114,16 +115,10 @@ export class App {
   inviteToken = '';
   inviteEmail = '';
 
-  readonly blockOptions: { type: BlockType; title: string; description: string }[] = [
-    { type: 'hero', title: 'Hero section', description: 'A featured headline and call to action' },
-    { type: 'heading', title: 'Heading & text', description: 'An eyebrow, heading, and body copy' },
-    { type: 'image', title: 'Image', description: 'An image with alt text and a caption' },
-    { type: 'button', title: 'Button', description: 'A standalone link or call to action' },
-    { type: 'faq', title: 'FAQ', description: 'A question with its answer' },
-  ];
+  readonly blockOptions = BLOCK_DEFS;
 
   blockTitle(type: BlockType): string {
-    return this.blockOptions.find((option) => option.type === type)?.title ?? 'Content block';
+    return this.blockDef(type)?.title ?? 'Content block';
   }
 
   constructor() {
@@ -270,26 +265,102 @@ export class App {
     }
   }
 
+  blockFieldHandler(blockId: string, field: string): (event: Event) => void {
+    return (event) => this.updateBlockField(blockId, field, event);
+  }
+
+  blockUploadHandler(blockId: string, field: string): (event: Event) => void {
+    return (event) => void this.uploadBlockImage(blockId, field, event);
+  }
+
+  itemFieldHandler(block: ContentBlock, index: number, field: string): (event: Event) => void {
+    return (event) => this.updateItemField(block, index, field, event);
+  }
+
+  itemUploadHandler(block: ContentBlock, index: number, field: string): (event: Event) => void {
+    return (event) => void this.uploadItemImage(block, index, field, event);
+  }
+
   addBlock(type: BlockType): void {
-    const defaults: Record<BlockType, Record<string, string>> = {
-      hero: { title: 'A bold headline', subtitle: 'Add a short supporting message.', buttonLabel: 'Get started', buttonUrl: '', imageUrl: '' },
-      heading: { eyebrow: '', text: 'Your heading', body: 'Add your content here.' },
-      image: { url: '', alt: '', caption: '' },
-      button: { label: 'Learn more', url: '' },
-      faq: { question: 'Frequently asked question', answer: 'Write a helpful answer.' },
-    };
+    const def = this.blockDef(type);
     const page = this.selectedPage();
-    if (!page) {
+    if (!def || !page) {
       return;
     }
     this.updateSelectedPage({
-      blocks: [...page.blocks, { id: crypto.randomUUID(), type, data: { ...defaults[type] } }],
+      blocks: [...page.blocks, { id: crypto.randomUUID(), type, data: { ...def.defaults } }],
+    });
+  }
+
+  blockDef(type: BlockType): BlockDef | undefined {
+    return BLOCK_DEFS.find((def) => def.type === type);
+  }
+
+  blockItems(block: ContentBlock): BlockItem[] {
+    try {
+      const parsed: unknown = JSON.parse(block.data['items'] || '[]');
+      return Array.isArray(parsed) ? (parsed as BlockItem[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  addItem(block: ContentBlock): void {
+    const def = this.blockDef(block.type);
+    if (def?.itemDefaults) {
+      this.setItems(block.id, [...this.blockItems(block), { ...def.itemDefaults }]);
+    }
+  }
+
+  removeItem(block: ContentBlock, index: number): void {
+    this.setItems(block.id, this.blockItems(block).filter((_, i) => i !== index));
+  }
+
+  moveItem(block: ContentBlock, index: number, offset: number): void {
+    const items = this.blockItems(block);
+    const target = index + offset;
+    if (target < 0 || target >= items.length) {
+      return;
+    }
+    [items[index], items[target]] = [items[target], items[index]];
+    this.setItems(block.id, items);
+  }
+
+  updateItemField(block: ContentBlock, index: number, field: string, event: Event): void {
+    const target = event.target;
+    if (
+      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)
+    ) {
+      return;
+    }
+    this.setItemField(block, index, field, target.value);
+  }
+
+  async uploadItemImage(block: ContentBlock, index: number, field: string, event: Event): Promise<void> {
+    const url = await this.uploadFromInput(event);
+    if (url) {
+      this.setItemField(block, index, field, url);
+    }
+  }
+
+  private setItemField(block: ContentBlock, index: number, field: string, value: string): void {
+    const items = this.blockItems(block).map((item, i) => (i === index ? { ...item, [field]: value } : item));
+    this.setItems(block.id, items);
+  }
+
+  private setItems(blockId: string, items: BlockItem[]): void {
+    this.updateSelectedPage({
+      blocks: this.selectedPage()?.blocks.map((block) =>
+        block.id === blockId ? { ...block, data: { ...block.data, items: JSON.stringify(items) } } : block,
+      ),
     });
   }
 
   updateBlockField(blockId: string, field: string, event: Event): void {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+    if (
+      !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)
+    ) {
       return;
     }
     this.updateSelectedPage({
@@ -368,13 +439,54 @@ export class App {
     void this.loadSettings();
     this.loadingPages.set(true);
     try {
-      const pages = await firstValueFrom(this.http.get<Page[]>('/api/pages'));
+      const pages = (await firstValueFrom(this.http.get<Page[]>('/api/pages'))).map((page) => ({
+        ...page,
+        blocks: page.blocks.map((block) => this.upgradeBlock(block)),
+      }));
       this.pages.set(pages);
       this.selectedPageId.set(pages[0]?.id ?? null);
     } catch (error) {
       this.pageError.set(this.errorMessage(error));
     } finally {
       this.loadingPages.set(false);
+    }
+  }
+
+  async uploadBrandingImage(field: 'logoUrl' | 'faviconUrl' | 'ogImageUrl', event: Event): Promise<void> {
+    const url = await this.uploadFromInput(event);
+    const draft = this.draft();
+    if (url && draft) {
+      draft.branding[field] = url;
+    }
+  }
+
+  async uploadBlockImage(blockId: string, field: string, event: Event): Promise<void> {
+    const url = await this.uploadFromInput(event);
+    if (url) {
+      this.updateSelectedPage({
+        blocks: this.selectedPage()?.blocks.map((block) =>
+          block.id === blockId ? { ...block, data: { ...block.data, [field]: url } } : block,
+        ),
+      });
+    }
+  }
+
+  private async uploadFromInput(event: Event): Promise<string | null> {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.files?.length) {
+      return null;
+    }
+    const file = input.files[0];
+    input.value = '';
+    this.pageError.set('');
+    this.settingsError.set('');
+    try {
+      return await this.siteSettings.uploadImage(file);
+    } catch (error) {
+      const message = this.errorMessage(error);
+      this.pageError.set(message);
+      this.settingsError.set(message);
+      return null;
     }
   }
 
@@ -448,6 +560,16 @@ export class App {
       '--p-radius': `${theme.cornerRadius}px`,
       '--p-padding': `${theme.padding}px`,
     };
+  }
+
+  /** Converts the old single question/answer FAQ block into the multi-item format. */
+  private upgradeBlock(block: ContentBlock): ContentBlock {
+    if (block.type !== 'faq' || block.data['items'] !== undefined) {
+      return block;
+    }
+    const { question, answer, ...rest } = block.data;
+    const items = question || answer ? [{ question: question ?? '', answer: answer ?? '' }] : [];
+    return { ...block, data: { ...rest, title: rest['title'] ?? 'Frequently asked questions', items: JSON.stringify(items) } };
   }
 
   private updateSelectedPage(patch: Partial<Page>): void {
