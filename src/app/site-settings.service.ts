@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+const MAX_IMAGE_SIDE = 1920;
+
 export interface Branding {
   siteName: string;
   tagline: string;
@@ -76,8 +78,32 @@ export class SiteSettingsService {
 
   async uploadImage(file: File): Promise<string> {
     const body = new FormData();
-    body.append('file', file);
+    body.append('file', await this.downscale(file));
     const result = await firstValueFrom(this.http.post<{ url: string }>('/api/media', body));
     return result.url;
+  }
+
+  /** Shrinks images wider or taller than MAX_IMAGE_SIDE. GIFs are left alone to keep animation. */
+  private async downscale(file: File): Promise<File> {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      return file;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height));
+      if (scale === 1) {
+        bitmap.close();
+        return file;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, file.type, 0.85));
+      return blob && blob.size < file.size ? new File([blob], file.name, { type: file.type }) : file;
+    } catch {
+      return file;
+    }
   }
 }
