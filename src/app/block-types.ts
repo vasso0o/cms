@@ -9,12 +9,16 @@ export type BlockType =
   | 'fullHero'
   | 'imageText'
   | 'bento'
-  | 'fab';
+  | 'fab'
+  | 'spacer'
+  | 'divider'
+  | 'buttonGroup'
+  | 'list';
 
 export interface FieldDef {
   key: string;
   label: string;
-  kind: 'text' | 'textarea' | 'url' | 'image' | 'select';
+  kind: 'text' | 'textarea' | 'url' | 'image' | 'select' | 'number' | 'color';
   options?: { value: string; label: string }[];
   placeholder?: string;
 }
@@ -155,5 +159,48 @@ export const BLOCK_DEFS: BlockDef[] = [
       { key: 'url', label: 'Destination URL', kind: 'url', placeholder: 'https://, mailto: or tel:' },
       { key: 'position', label: 'Position', kind: 'select', options: POSITION },
     ],
+  },
+  {
+    type: 'spacer', title: 'Space', description: 'Empty vertical space between blocks', generic: true,
+    defaults: { height: '40' },
+    fields: [{ key: 'height', label: 'Height (px)', kind: 'number' }],
+  },
+  {
+    type: 'divider', title: 'Divider line', description: 'A horizontal line with custom height and color', generic: true,
+    defaults: { height: '1', color: '--primary' },
+    fields: [
+      { key: 'height', label: 'Height (px)', kind: 'number' },
+      { key: 'color', label: 'Color', kind: 'color' },
+    ],
+  },
+  {
+    type: 'buttonGroup', title: 'Button group', description: 'A full-width row of buttons that wraps', generic: true,
+    defaults: { justify: 'start', items: '[]' },
+    fields: [
+      { key: 'justify', label: 'Alignment', kind: 'select', options: [{ value: 'start', label: 'Start' }, { value: 'center', label: 'Center' }, { value: 'between', label: 'Space between' }] },
+    ],
+    itemLabel: 'Button',
+    itemFields: [
+      { key: 'label', label: 'Label', kind: 'text' },
+      { key: 'url', label: 'URL', kind: 'url' },
+    ],
+    itemDefaults: { label: 'Learn more', url: '' },
+  },
+  {
+    type: 'list', title: 'List', description: 'A styled vertical or horizontal list with optional image', generic: true,
+    defaults: { title: '', orientation: 'vertical', listStyle: 'checks', imageUrl: '', alt: '', items: '[]' },
+    fields: [
+      { key: 'title', label: 'Title (optional)', kind: 'text' },
+      { key: 'orientation', label: 'Layout', kind: 'select', options: [{ value: 'vertical', label: 'Vertical (image left, list right)' }, { value: 'horizontal', label: 'Horizontal (image as parallax background)' }] },
+      { key: 'listStyle', label: 'List style', kind: 'select', options: [{ value: 'checks', label: 'Checkmarks' }, { value: 'bullets', label: 'Bullets' }, { value: 'numbers', label: 'Numbers' }, { value: 'arrows', label: 'Arrows' }] },
+      { key: 'imageUrl', label: 'Image (optional)', kind: 'image' },
+      { key: 'alt', label: 'Image description', kind: 'text' },
+    ],
+    itemLabel: 'Item',
+    itemFields: [
+      { key: 'title', label: 'Title', kind: 'text' },
+      { key: 'text', label: 'Text', kind: 'textarea' },
+    ],
+    itemDefaults: { title: 'List item', text: '' },
   },
 ];

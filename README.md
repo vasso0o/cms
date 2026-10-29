@@ -47,6 +47,7 @@ A page response has this shape:
     {
       "id": "block-id",
       "type": "heading",
+      "order": 0,
       "data": { "eyebrow": "", "text": "About us", "body": "Page content" }
     }
   ],
@@ -58,7 +59,7 @@ A page response has this shape:
 - `GET /api/pages` — pages visible to the signed-in user.
 - `POST /api/pages` — create from `{ "title": "...", "status": "draft" | "published", "blocks": [] }`.
 - `GET /api/pages/:id` — read a page.
-- `PUT /api/pages/:id` — update title, status, and blocks.
+- `PUT /api/pages/:id` — update title, status, and blocks. Each block carries a zero-based `order`; store it and return blocks sorted by it. Dragging a block in the editor saves the page immediately.
 - `DELETE /api/pages/:id` — delete a page.
 
 The available block types are `hero`, `heading`, `image`, `button`, and `faq`; each block's `data` contains its editable string fields. Scope page access to the authenticated user in your backend. Published status is currently metadata only; public page routes are not included yet.

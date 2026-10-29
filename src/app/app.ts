@@ -32,6 +32,7 @@ interface ContentBlock {
   id: string;
   type: BlockType;
   data: Record<string, string>;
+  order?: number;
 }
 
 interface Page {
@@ -224,7 +225,7 @@ export class App {
         this.http.put<Page>(`/api/pages/${encodeURIComponent(page.id)}`, {
           title: page.title,
           status: page.status,
-          blocks: page.blocks,
+          blocks: page.blocks.map((block, order) => ({ ...block, order })),
         }),
       );
       this.pages.update((pages) => pages.map((item) => (item.id === savedPage.id ? savedPage : item)));
@@ -264,6 +265,20 @@ export class App {
     if (target instanceof HTMLSelectElement && (target.value === 'draft' || target.value === 'published')) {
       this.updateSelectedPage({ status: target.value });
     }
+  }
+
+  /** Color-schema choices stored as CSS variable names (e.g. "--primary"). */
+  schemaColors(): { token: string; label: string; color: string }[] {
+    const palette = this.draft()?.theme.light ?? defaultTheme().light;
+    return PALETTE_FIELDS.map((field) => ({
+      token: `--${field.key}`,
+      label: field.label,
+      color: palette[field.key],
+    }));
+  }
+
+  isHexColor(value: string | undefined): boolean {
+    return !!value && /^#[0-9a-fA-F]{6}$/.test(value);
   }
 
   blockFieldHandler(blockId: string, field: string): (event: Event) => void {
@@ -378,6 +393,61 @@ export class App {
     }
   }
 
+  readonly expandedBlocks = signal<ReadonlySet<string>>(new Set());
+  readonly draggedBlockId = signal<string | null>(null);
+  readonly dragOverBlockId = signal<string | null>(null);
+
+  toggleBlock(blockId: string): void {
+    this.expandedBlocks.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(blockId)) {
+        next.add(blockId);
+      }
+      return next;
+    });
+  }
+
+  onBlockDragStart(event: DragEvent, blockId: string): void {
+    this.draggedBlockId.set(blockId);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', blockId);
+    }
+  }
+
+  onBlockDragOver(event: DragEvent, blockId: string): void {
+    if (!this.draggedBlockId()) {
+      return;
+    }
+    event.preventDefault();
+    this.dragOverBlockId.set(blockId);
+  }
+
+  onBlockDrop(event: DragEvent, targetId: string): void {
+    event.preventDefault();
+    const sourceId = this.draggedBlockId();
+    const blocks = this.selectedPage()?.blocks;
+    this.onBlockDragEnd();
+    if (!blocks || !sourceId || sourceId === targetId) {
+      return;
+    }
+    const from = blocks.findIndex((block) => block.id === sourceId);
+    const to = blocks.findIndex((block) => block.id === targetId);
+    if (from < 0 || to < 0) {
+      return;
+    }
+    const reordered = [...blocks];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    this.updateSelectedPage({ blocks: reordered });
+    void this.savePage();
+  }
+
+  onBlockDragEnd(): void {
+    this.draggedBlockId.set(null);
+    this.dragOverBlockId.set(null);
+  }
+
   async createInvitation(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     this.inviteNotice.set('');
@@ -442,7 +512,10 @@ export class App {
     try {
       const pages = (await firstValueFrom(this.http.get<Page[]>('/api/pages'))).map((page) => ({
         ...page,
-        blocks: page.blocks.map((block) => this.upgradeBlock(block)),
+        blocks: page.blocks
+          .map((block, index) => ({ block, index }))
+          .sort((a, b) => (a.block.order ?? a.index) - (b.block.order ?? b.index))
+          .map(({ block }) => this.upgradeBlock(block)),
       }));
       this.pages.set(pages);
       this.selectedPageId.set(pages[0]?.id ?? null);

@@ -512,6 +512,57 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.block-toggle {
+  flex: 1;
+  min-height: 42px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: #2b2a3d;
+}
+
+.block-chevron {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #ece9ff;
+  color: #5b52e6;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.block-toggle:hover .block-chevron {
+  background: #6c63ff;
+  color: #fff;
+}
+
+.block-toggle:focus-visible {
+  outline: 2px solid #6c63ff;
+  outline-offset: -2px;
+}
+
+.drag-handle {
+  padding: 8px 8px 8px 0;
+  color: #a2a1b1;
+  cursor: grab;
+  letter-spacing: -2px;
+  user-select: none;
+}
+
+.block-card.dragging {
+  opacity: 0.45;
+}
+
+.block-card.drag-over {
+  box-shadow: 0 -3px 0 0 #6c63ff;
+}
+
 .remove-block-button {
   width: 26px;
   height: 26px;
@@ -1003,3 +1054,20 @@ select:focus-visible {
 .item-card-actions { display: flex; gap: 4px; }
 .field-thumb { max-width: 120px; max-height: 80px; border-radius: 6px; object-fit: cover; }
 .file-input { font-size: 12px; }
+
+.color-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.color-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.color-swatch:has(input:checked) { border-color: #6c63ff; box-shadow: 0 0 0 2px #ece9ff; }
+.color-swatch input[type='radio'] { position: absolute; opacity: 0; pointer-events: none; }
+.color-swatch input[type='color'] { width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; }
+.color-chip { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.15); }
+

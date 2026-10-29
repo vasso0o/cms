@@ -46,6 +46,24 @@
             }
           </select>
         }
+        @case ('number') {
+          <input type="number" min="1" max="1000" step="1" [value]="value ?? ''" (input)="onInput($event)" />
+        }
+        @case ('color') {
+          <div class="color-choices">
+            @for (c of schemaColors(); track c.token) {
+              <label class="color-swatch" [title]="c.label">
+                <input type="radio" [value]="c.token" [checked]="value === c.token" (change)="onInput($event)" />
+                <span class="color-chip" [style.background]="c.color"></span>
+                <span class="color-name">{{ c.label }}</span>
+              </label>
+            }
+            <label class="color-swatch" title="Custom color">
+              <input type="color" [value]="isHexColor(value) ? value : '#888888'" (input)="onInput($event)" />
+              <span class="color-name">Custom{{ isHexColor(value) ? ': ' + value : '' }}</span>
+            </label>
+          </div>
+        }
         @case ('image') {
           <input type="url" [value]="value ?? ''" (input)="onInput($event)" placeholder="https:// or upload below" />
           <input type="file" class="file-input" accept="image/png,image/jpeg,image/gif,image/webp" (change)="onUpload($event)" />
@@ -413,12 +431,33 @@
               } @else {
                 <div class="block-stack">
                   @for (block of page.blocks; track block.id; let index = $index) {
-                    <article class="block-card">
+                    <article
+                      class="block-card"
+                      [style.order]="index"
+                      [class.dragging]="draggedBlockId() === block.id"
+                      [class.drag-over]="dragOverBlockId() === block.id && draggedBlockId() !== block.id"
+                      (dragover)="onBlockDragOver($event, block.id)"
+                      (drop)="onBlockDrop($event, block.id)"
+                    >
                       <header class="block-card-header">
-                        <div class="block-card-title">
+                        <span
+                          class="drag-handle"
+                          draggable="true"
+                          title="Drag to reorder"
+                          aria-label="Drag to reorder"
+                          (dragstart)="onBlockDragStart($event, block.id)"
+                          (dragend)="onBlockDragEnd()"
+                        >⋮⋮</span>
+                        <button
+                          class="block-card-title block-toggle"
+                          type="button"
+                          [attr.aria-expanded]="expandedBlocks().has(block.id)"
+                          (click)="toggleBlock(block.id)"
+                        >
+                          <span class="block-chevron" aria-hidden="true">{{ expandedBlocks().has(block.id) ? '▾' : '▸' }}</span>
                           <span class="block-index">{{ (index + 1).toString().padStart(2, '0') }}</span>
                           <span>{{ blockTitle(block.type) }}</span>
-                        </div>
+                        </button>
                         <button
                           class="icon-button remove-block-button"
                           type="button"
@@ -429,6 +468,7 @@
                         </button>
                       </header>
 
+                      @if (expandedBlocks().has(block.id)) {
                       <div class="block-fields">
                         @switch (block.type) {
                           @case ('hero') {
@@ -535,6 +575,7 @@
                           }
                         }
                       </div>
+                      }
                     </article>
                   }
                 </div>
