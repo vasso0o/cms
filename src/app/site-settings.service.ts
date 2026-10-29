@@ -22,6 +22,45 @@ export interface MenuItem {
   url: string;
 }
 
+export interface SocialLink {
+  platform: string;
+  url: string;
+}
+
+export interface FooterSettings {
+  layout: 'columns' | 'centered';
+  description: string;
+  phone: string;
+  address: string;
+  social: SocialLink[];
+  copyright: string;
+  showLogo: boolean;
+  showEmail: boolean;
+  backToTop: boolean;
+}
+
+export const SOCIAL_PLATFORMS: { value: string; label: string }[] = [
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'x', label: 'X (Twitter)' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'youtube', label: 'YouTube' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'github', label: 'GitHub' },
+  { value: 'pinterest', label: 'Pinterest' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'email', label: 'Email' },
+  { value: 'website', label: 'Website' },
+];
+
+export function defaultFooter(): FooterSettings {
+  return {
+    layout: 'columns', description: '', phone: '', address: '', social: [], copyright: '',
+    showLogo: true, showEmail: true, backToTop: true,
+  };
+}
+
 export interface Palette {
   primary: string;
   secondary: string;
@@ -39,12 +78,27 @@ export interface Theme {
   dark: Palette;
   cornerRadius: number;
   padding: number;
+  headingFont: string;
+  bodyFont: string;
+  baseSize: number;
+  headingWeight: number;
 }
+
+export const FONT_CHOICES = [
+  'system', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Montserrat', 'Manrope', 'Nunito', 'Raleway',
+  'Playfair Display', 'Merriweather', 'Lora', 'DM Serif Display', 'Space Grotesk', 'Source Sans 3',
+];
+
+export const WEIGHT_CHOICES = [
+  { value: 400, label: 'Regular' }, { value: 500, label: 'Medium' }, { value: 600, label: 'Semibold' },
+  { value: 700, label: 'Bold' }, { value: 800, label: 'Extra bold' }, { value: 900, label: 'Black' },
+];
 
 export interface SiteSettings {
   branding: Branding;
   menus: { navigation: MenuItem[]; footer: MenuItem[] };
   theme: Theme;
+  footer: FooterSettings;
   published: boolean;
 }
 
@@ -68,6 +122,19 @@ export function defaultTheme(): Theme {
     dark: { primary: '#8b7fff', secondary: '#ff9a7e', background: '#12111d', surface: '#1d1c2c', text: '#ecebf7' },
     cornerRadius: 8,
     padding: 24,
+    headingFont: 'system',
+    bodyFont: 'system',
+    baseSize: 16,
+    headingWeight: 700,
+  };
+}
+
+function withFooter(settings: SiteSettings): SiteSettings {
+  const { light, dark, ...typography } = defaultTheme();
+  return {
+    ...settings,
+    theme: { ...typography, ...settings.theme },
+    footer: { ...defaultFooter(), ...(settings.footer ?? {}) },
   };
 }
 
@@ -76,11 +143,16 @@ export class SiteSettingsService {
   private readonly http = inject(HttpClient);
 
   load(): Promise<SiteSettings> {
-    return firstValueFrom(this.http.get<SiteSettings>('/api/site'));
+    return firstValueFrom(this.http.get<SiteSettings>('/api/site')).then(withFooter);
   }
 
   save(settings: SiteSettings): Promise<SiteSettings> {
-    return firstValueFrom(this.http.put<SiteSettings>('/api/site', settings));
+    const social = (settings.footer?.social ?? []).map((s) => {
+      const url = s.url.trim();
+      return /^[^\s@:/]+@[^\s@:/]+\.[^\s@:/]+$/.test(url) ? { ...s, url: 'mailto:' + url } : { ...s, url };
+    });
+    const body = { ...settings, footer: { ...settings.footer, social } };
+    return firstValueFrom(this.http.put<SiteSettings>('/api/site', body)).then(withFooter);
   }
 
   publish(): Promise<SiteBuildResponse> {

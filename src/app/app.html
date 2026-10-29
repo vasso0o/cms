@@ -47,10 +47,17 @@
           </select>
         }
         @case ('number') {
-          <input type="number" min="1" max="1000" step="1" [value]="value ?? ''" (input)="onInput($event)" />
+          <input type="number" min="1" max="1000" step="1" [value]="value ?? ''" [placeholder]="field.placeholder ?? ''" (input)="onInput($event)" />
         }
         @case ('color') {
           <div class="color-choices">
+            @if (field.optional) {
+              <label class="color-swatch" title="Default color">
+                <input type="radio" value="" [checked]="!value" (change)="onInput($event)" />
+                <span class="color-chip color-chip-default"></span>
+                <span class="color-name">Default</span>
+              </label>
+            }
             @for (c of schemaColors(); track c.token) {
               <label class="color-swatch" [title]="c.label">
                 <input type="radio" [value]="c.token" [checked]="value === c.token" (change)="onInput($event)" />
@@ -138,6 +145,70 @@
     }
   </ng-template>
 
+  <ng-template #footerTpl>
+    <ng-container *ngTemplateOutlet="settingsAlerts" />
+    @if (draft(); as d) {
+      <header class="settings-header">
+        <div>
+          <div class="section-kicker">SITE FOOTER</div>
+          <h1>Footer</h1>
+        </div>
+        <button class="button button-primary" type="button" [disabled]="savingSettings()" (click)="saveSettings()">
+          {{ savingSettings() ? 'Saving…' : 'Save footer' }}
+        </button>
+      </header>
+      <div class="settings-grid">
+        <section class="settings-card form-stack">
+          <h2>Content</h2>
+          <label>
+            Layout
+            <select class="status-select" name="footerLayout" [(ngModel)]="d.footer.layout">
+              <option value="columns">Columns (brand left, links right)</option>
+              <option value="centered">Centered</option>
+            </select>
+          </label>
+          <label>
+            About text <span class="char-count">{{ d.footer.description.length }}/400</span>
+            <textarea name="footerDescription" rows="3" maxlength="400" placeholder="A short description shown under the site name. Leave empty to use the tagline." [(ngModel)]="d.footer.description"></textarea>
+          </label>
+          <label>Phone<input name="footerPhone" maxlength="60" placeholder="+30 210 000 0000" [(ngModel)]="d.footer.phone" /></label>
+          <label>Address<textarea name="footerAddress" rows="2" maxlength="300" [(ngModel)]="d.footer.address"></textarea></label>
+          <label>
+            Copyright text
+            <input name="footerCopyright" maxlength="200" placeholder="Leave empty for © year site name" [(ngModel)]="d.footer.copyright" />
+          </label>
+          <label class="check-row"><input type="checkbox" name="footerShowLogo" [(ngModel)]="d.footer.showLogo" /> Show logo</label>
+          <label class="check-row"><input type="checkbox" name="footerShowEmail" [(ngModel)]="d.footer.showEmail" /> Show contact email (from Branding)</label>
+          <label class="check-row"><input type="checkbox" name="footerBackToTop" [(ngModel)]="d.footer.backToTop" /> Show “Back to top” button</label>
+        </section>
+        <section class="settings-card">
+          <h2>Social media</h2>
+          <p class="settings-help">Icons shown in the footer. Footer links come from the Footer menu under Menus.</p>
+          @for (link of d.footer.social; track $index; let i = $index) {
+            <div class="menu-row">
+              <select class="status-select" aria-label="Platform" [(ngModel)]="link.platform" [name]="'sp' + i">
+                @for (p of socialPlatforms; track p.value) {
+                  <option [value]="p.value">{{ p.label }}</option>
+                }
+              </select>
+              <input aria-label="URL" placeholder="https://… or name@email.com" [(ngModel)]="link.url" [name]="'su' + i" />
+              <button class="icon-button" type="button" aria-label="Move up" (click)="moveSocialLink(i, -1)">↑</button>
+              <button class="icon-button" type="button" aria-label="Move down" (click)="moveSocialLink(i, 1)">↓</button>
+              <button class="icon-button" type="button" aria-label="Remove link" (click)="removeSocialLink(i)">×</button>
+            </div>
+          } @empty {
+            <p class="sidebar-empty">No social links yet.</p>
+          }
+          <div class="menu-actions">
+            <button class="button button-quiet" type="button" (click)="addSocialLink()">+ Add social link</button>
+          </div>
+        </section>
+      </div>
+    } @else {
+      <p class="sidebar-empty">Loading settings…</p>
+    }
+  </ng-template>
+
   <ng-template #brandingTpl>
     <ng-container *ngTemplateOutlet="settingsAlerts" />
     @if (draft(); as d) {
@@ -215,25 +286,58 @@
         </div>
       </header>
       <div class="settings-grid">
-        <section class="settings-card form-stack">
-          <h2>Shape &amp; spacing</h2>
-          <label>
-            Corner radius <span class="char-count">{{ d.theme.cornerRadius }}px</span>
-            <input name="cornerRadius" type="range" min="0" max="40" [(ngModel)]="d.theme.cornerRadius" />
-          </label>
-          <label>
-            Padding <span class="char-count">{{ d.theme.padding }}px</span>
-            <input name="padding" type="range" min="0" max="64" [(ngModel)]="d.theme.padding" />
-          </label>
-          <label>
-            Default mode
-            <select name="defaultMode" class="status-select" [(ngModel)]="d.theme.defaultMode">
-              <option value="auto">Follow visitor's device</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-        </section>
+        <div class="d-flex flex-column">
+          <section class="settings-card form-stack">
+            <h2>Shape &amp; spacing</h2>
+            <label>
+              Corner radius <span class="char-count">{{ d.theme.cornerRadius }}px</span>
+              <input name="cornerRadius" type="range" min="0" max="40" [(ngModel)]="d.theme.cornerRadius" />
+            </label>
+            <label>
+              Padding <span class="char-count">{{ d.theme.padding }}px</span>
+              <input name="padding" type="range" min="0" max="64" [(ngModel)]="d.theme.padding" />
+            </label>
+            <label>
+              Default mode
+              <select name="defaultMode" class="status-select" [(ngModel)]="d.theme.defaultMode">
+                <option value="auto">Follow visitor's device</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+          </section>
+          <section class="settings-card form-stack">
+            <h2>Typography</h2>
+            <label>
+              Heading font
+              <select name="headingFont" class="status-select" [(ngModel)]="d.theme.headingFont" (ngModelChange)="loadFont($event)">
+                @for (font of fontChoices; track font) {
+                  <option [value]="font">{{ font === 'system' ? 'System default' : font }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Body font
+              <select name="bodyFont" class="status-select" [(ngModel)]="d.theme.bodyFont" (ngModelChange)="loadFont($event)">
+                @for (font of fontChoices; track font) {
+                  <option [value]="font">{{ font === 'system' ? 'System default' : font }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Heading weight
+              <select name="headingWeight" class="status-select" [(ngModel)]="d.theme.headingWeight">
+                @for (w of weightChoices; track w.value) {
+                  <option [ngValue]="w.value">{{ w.label }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              Base text size <span class="char-count">{{ d.theme.baseSize }}px</span>
+              <input name="baseSize" type="range" min="14" max="22" [(ngModel)]="d.theme.baseSize" />
+            </label>
+          </section>
+        </div>
         @for (mode of modes; track mode.key) {
           <section class="settings-card">
             <h2>{{ mode.title }}</h2>
@@ -373,6 +477,8 @@
       <section class="editor">
         @if (section() === 'menus') {
           <ng-container *ngTemplateOutlet="menusTpl" />
+        } @else if (section() === 'footer') {
+          <ng-container *ngTemplateOutlet="footerTpl" />
         } @else if (section() === 'branding') {
           <ng-container *ngTemplateOutlet="brandingTpl" />
         } @else if (section() === 'styles') {
@@ -512,6 +618,11 @@
                               Body text
                               <textarea rows="4" [value]="block.data['body']" (input)="updateBlockField(block.id, 'body', $event)"></textarea>
                             </label>
+                            @for (field of headingStyleFields; track field.key) {
+                              <ng-container
+                                *ngTemplateOutlet="fieldTpl; context: { field: field, value: block.data[field.key], onInput: blockFieldHandler(block.id, field.key), onUpload: blockUploadHandler(block.id, field.key) }"
+                              />
+                            }
                           }
                           @case ('image') {
                             <label>

@@ -6,9 +6,12 @@ import { PLATFORM_ID } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ModalHost } from './modal-host';
 import { ModalService } from './modal.service';
-import { BLOCK_DEFS, BlockDef, BlockItem, BlockType as ImportedBlockType } from './block-types';
+import { BLOCK_DEFS, BlockDef, BlockItem, HEADING_STYLE_FIELDS, BlockType as ImportedBlockType } from './block-types';
 import {
   defaultTheme,
+  FONT_CHOICES,
+  WEIGHT_CHOICES,
+  SOCIAL_PLATFORMS,
   PALETTE_FIELDS,
   Palette,
   SiteSettings,
@@ -16,7 +19,7 @@ import {
   Theme,
 } from './site-settings.service';
 
-type Section = 'pages' | 'menus' | 'branding' | 'styles';
+type Section = 'pages' | 'menus' | 'footer' | 'branding' | 'styles';
 
 type UserRole = 'admin' | 'editor';
 type PageStatus = 'draft' | 'published';
@@ -85,6 +88,9 @@ export class App {
   readonly settingsError = signal('');
   readonly settingsNotice = signal('');
   readonly paletteFields = PALETTE_FIELDS;
+  readonly headingStyleFields = HEADING_STYLE_FIELDS;
+  readonly fontChoices = FONT_CHOICES;
+  readonly weightChoices = WEIGHT_CHOICES;
   readonly menuDefs: { key: 'navigation' | 'footer'; title: string; help: string }[] = [
     { key: 'navigation', title: 'Navigation menu', help: 'Links shown in the site header.' },
     { key: 'footer', title: 'Footer menu', help: 'Links shown in the site footer.' },
@@ -108,6 +114,7 @@ export class App {
   readonly sections: { id: Section; label: string; icon: string }[] = [
     { id: 'pages', label: 'Pages', icon: '▤' },
     { id: 'menus', label: 'Menus', icon: '☰' },
+    { id: 'footer', label: 'Footer', icon: '▁' },
     { id: 'branding', label: 'Branding & SEO', icon: '◎' },
     { id: 'styles', label: 'Styles & colors', icon: '◐' },
   ];
@@ -566,7 +573,10 @@ export class App {
 
   private async loadSettings(): Promise<void> {
     try {
-      this.draft.set(await this.siteSettings.load());
+      const settings = await this.siteSettings.load();
+      this.draft.set(settings);
+      this.loadFont(settings.theme.headingFont);
+      this.loadFont(settings.theme.bodyFont);
     } catch (error) {
       this.settingsError.set(this.errorMessage(error));
     }
@@ -631,6 +641,25 @@ export class App {
     }
   }
 
+  readonly socialPlatforms = SOCIAL_PLATFORMS;
+
+  addSocialLink(): void {
+    this.draft()?.footer.social.push({ platform: 'facebook', url: 'https://' });
+  }
+
+  removeSocialLink(index: number): void {
+    this.draft()?.footer.social.splice(index, 1);
+  }
+
+  moveSocialLink(index: number, offset: number): void {
+    const links = this.draft()?.footer.social;
+    const target = index + offset;
+    if (!links || target < 0 || target >= links.length) {
+      return;
+    }
+    [links[index], links[target]] = [links[target], links[index]];
+  }
+
   openSection(section: Section): void {
     this.section.set(section);
     this.settingsError.set('');
@@ -665,8 +694,29 @@ export class App {
     }
   }
 
+  /** Loads a Google font so the editor preview can show it. */
+  loadFont(name: string): void {
+    if (!this.isBrowser || name === 'system') {
+      return;
+    }
+    const id = 'gf-' + name.replace(/\s+/g, '-');
+    if (document.getElementById(id)) {
+      return;
+    }
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, '+')}:wght@400;500;600;700;800;900&display=swap`;
+    document.head.appendChild(link);
+  }
+
   previewVars(theme: Theme, palette: Palette): Record<string, string> {
+    const stack = (name: string) => (name === 'system' ? 'system-ui, sans-serif' : `'${name}', sans-serif`);
     return {
+      '--p-heading-font': stack(theme.headingFont),
+      '--p-body-font': stack(theme.bodyFont),
+      '--p-size': `${theme.baseSize}px`,
+      '--p-weight': `${theme.headingWeight}`,
       '--p-primary': palette.primary,
       '--p-secondary': palette.secondary,
       '--p-background': palette.background,

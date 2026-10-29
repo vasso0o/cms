@@ -21,7 +21,20 @@ export interface FieldDef {
   kind: 'text' | 'textarea' | 'url' | 'image' | 'select' | 'number' | 'color';
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /** Color fields: offers a "Default" choice that stores an empty value. */
+  optional?: boolean;
 }
+
+/** Style options for the heading & text block, rendered after its hand-written fields. */
+export const HEADING_STYLE_FIELDS: FieldDef[] = [
+  { key: 'eyebrowPosition', label: 'Eyebrow position', kind: 'select', options: [{ value: 'above', label: 'Above the heading' }, { value: 'left', label: 'Left, text & heading on the right' }] },
+  { key: 'eyebrowSize', label: 'Eyebrow size (px)', kind: 'number', placeholder: 'Default' },
+  { key: 'headingSize', label: 'Heading size (px)', kind: 'number', placeholder: 'Default' },
+  { key: 'bodySize', label: 'Body text size (px)', kind: 'number', placeholder: 'Default' },
+  { key: 'eyebrowColor', label: 'Eyebrow color', kind: 'color', optional: true },
+  { key: 'headingColor', label: 'Heading color', kind: 'color', optional: true },
+  { key: 'bodyColor', label: 'Body text color', kind: 'color', optional: true },
+];
 
 export interface BlockDef {
   type: BlockType;
