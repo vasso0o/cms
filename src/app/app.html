@@ -228,6 +228,10 @@
           <label>Tagline<input name="tagline" maxlength="200" [(ngModel)]="d.branding.tagline" /></label>
           <label>Logo URL<input name="logoUrl" placeholder="https://" [(ngModel)]="d.branding.logoUrl" /></label>
           <label class="upload-row">Or upload a logo<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('logoUrl', $event)" /></label>
+          <label>
+            Logo height <span class="char-count">{{ d.branding.logoSize }}px</span>
+            <input name="logoSize" type="range" min="16" max="300" [(ngModel)]="d.branding.logoSize" />
+          </label>
           <label>Favicon URL<input name="faviconUrl" placeholder="https://" [(ngModel)]="d.branding.faviconUrl" /></label>
           <label class="upload-row">Or upload a favicon<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBrandingImage('faviconUrl', $event)" /></label>
           <label>Contact email<input name="contactEmail" type="email" [(ngModel)]="d.branding.contactEmail" /></label>
@@ -577,34 +581,6 @@
                       @if (expandedBlocks().has(block.id)) {
                       <div class="block-fields">
                         @switch (block.type) {
-                          @case ('hero') {
-                            <label>
-                              Headline
-                              <input [value]="block.data['title']" (input)="updateBlockField(block.id, 'title', $event)" />
-                            </label>
-                            <label>
-                              Supporting text
-                              <textarea rows="3" [value]="block.data['subtitle']" (input)="updateBlockField(block.id, 'subtitle', $event)"></textarea>
-                            </label>
-                            <div class="field-row">
-                              <label>
-                                Button label
-                                <input [value]="block.data['buttonLabel']" (input)="updateBlockField(block.id, 'buttonLabel', $event)" />
-                              </label>
-                              <label>
-                                Button URL
-                                <input type="url" [value]="block.data['buttonUrl']" (input)="updateBlockField(block.id, 'buttonUrl', $event)" placeholder="https://" />
-                              </label>
-                            </div>
-                            <label>
-                              Background image URL
-                              <input type="url" [value]="block.data['imageUrl']" (input)="updateBlockField(block.id, 'imageUrl', $event)" placeholder="https://" />
-                            </label>
-                            <label class="upload-row">
-                              Or upload an image
-                              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" (change)="uploadBlockImage(block.id, 'imageUrl', $event)" />
-                            </label>
-                          }
                           @case ('heading') {
                             <label>
                               Eyebrow

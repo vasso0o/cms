@@ -15,6 +15,7 @@ export interface Branding {
   metaKeywords: string;
   ogImageUrl: string;
   domain: string;
+  logoSize?: number;
 }
 
 export interface MenuItem {
@@ -133,6 +134,7 @@ function withFooter(settings: SiteSettings): SiteSettings {
   const { light, dark, ...typography } = defaultTheme();
   return {
     ...settings,
+    branding: { ...settings.branding, logoSize: settings.branding.logoSize ?? 40 },
     theme: { ...typography, ...settings.theme },
     footer: { ...defaultFooter(), ...(settings.footer ?? {}) },
   };

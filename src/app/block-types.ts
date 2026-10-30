@@ -1,5 +1,4 @@
 export type BlockType =
-  | 'hero'
   | 'heading'
   | 'image'
   | 'button'
@@ -27,6 +26,9 @@ export interface FieldDef {
 
 /** Style options for the heading & text block, rendered after its hand-written fields. */
 export const HEADING_STYLE_FIELDS: FieldDef[] = [
+  { key: 'layout', label: 'Layout', kind: 'select', options: [{ value: 'stack', label: 'Stacked' }, { value: 'split', label: 'Split: heading left, text right' }] },
+  { key: 'bgImage', label: 'Parallax background image (optional)', kind: 'image' },
+  { key: 'bgOverlay', label: 'Dark overlay on image', kind: 'select', options: [0, 20, 40, 60, 80].map((v) => ({ value: `${v}`, label: `${v}%` })) },
   { key: 'eyebrowPosition', label: 'Eyebrow position', kind: 'select', options: [{ value: 'above', label: 'Above the heading' }, { value: 'left', label: 'Left, text & heading on the right' }] },
   { key: 'eyebrowSize', label: 'Eyebrow size (px)', kind: 'number', placeholder: 'Default' },
   { key: 'headingSize', label: 'Heading size (px)', kind: 'number', placeholder: 'Default' },
@@ -58,11 +60,6 @@ const POSITION = [
 ];
 
 export const BLOCK_DEFS: BlockDef[] = [
-  {
-    type: 'hero', title: 'Hero section', description: 'A featured headline and call to action', generic: false,
-    defaults: { title: 'A bold headline', subtitle: 'Add a short supporting message.', buttonLabel: 'Get started', buttonUrl: '', imageUrl: '' },
-    fields: [],
-  },
   {
     type: 'fullHero', title: 'Full image hero', description: 'A full-width image with overlaid text', generic: true,
     defaults: { imageUrl: '', alt: '', title: 'A bold headline', subtitle: 'Add a short supporting message.', buttonLabel: 'Get started', buttonUrl: '', overlay: '40', align: 'center', height: '70' },
