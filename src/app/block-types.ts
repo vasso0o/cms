@@ -12,7 +12,8 @@ export type BlockType =
   | 'spacer'
   | 'divider'
   | 'buttonGroup'
-  | 'list';
+  | 'list'
+  | 'cardStack';
 
 export interface FieldDef {
   key: string;
@@ -212,5 +213,19 @@ export const BLOCK_DEFS: BlockDef[] = [
       { key: 'text', label: 'Text', kind: 'textarea' },
     ],
     itemDefaults: { title: 'List item', text: '' },
+  },
+  {
+    type: 'cardStack', title: 'Card stack', description: 'Cards with a title, text and optional tags that wrap into rows', generic: true,
+    defaults: { title: '', items: '[]' },
+    fields: [
+      { key: 'title', label: 'Title (optional)', kind: 'text' },
+    ],
+    itemLabel: 'Card',
+    itemFields: [
+      { key: 'title', label: 'Title', kind: 'text' },
+      { key: 'text', label: 'Text', kind: 'textarea' },
+      { key: 'tags', label: 'Tags (optional, separated by commas)', kind: 'text', placeholder: 'TypeScript, Angular, RxJS' },
+    ],
+    itemDefaults: { title: 'Card title', text: '', tags: '' },
   },
 ];
